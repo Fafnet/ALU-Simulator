@@ -14,7 +14,7 @@ export function Connection(props: ConnectionsProps) {
     <polyline
       points={points}
       fill="none"
-      stroke={props.signal ? "red" : "black"}
+      stroke={"red"}
       strokeWidth={1}
     />
   );
