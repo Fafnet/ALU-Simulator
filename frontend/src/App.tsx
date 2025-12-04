@@ -17,8 +17,8 @@ function App() {
 
   return (
     <div>
-      <Header onCircuitChange={handleCircuitChange}/>
-      <Grid circuit_id={circuitID}/>
+      {/* <Header onCircuitChange={handleCircuitChange}/> */}
+      <Grid circuit_id={1}/>
     </div>
   );
 }

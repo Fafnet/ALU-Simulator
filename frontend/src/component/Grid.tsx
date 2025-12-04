@@ -15,6 +15,7 @@ function useSvgViewport({ minScale = 0.5, maxScale = 4, step = 0.1 } = {}) {
     lastY: 0
   });
 
+
   // ZOOM HANDLER
   const onWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();

@@ -3,7 +3,8 @@ export type ConnectionsProps = {
   from_y: number,
   to_x: number, // destination pin
   to_y: number,
-  signal?: boolean
+  signal?: boolean,
+  offset?: number
 }
 
 export type ConnectionDBProps = {

@@ -12,7 +12,7 @@ import type { FetchData } from "../model/FetchData";
 // MUX 50x80
 export const sizeMap = new Map([
   ["OR", [50, 50]],
-  ["NOT", [80, 40]],
+  ["NOT", [40, 40]],
   ["AND", [80, 50]],
   ["OUTPUT", [20, 20]],
   ["INPUT", [20, 20]],
@@ -21,7 +21,7 @@ export const sizeMap = new Map([
 ]);
 
 // PROBABLY CHANGE LATER
-function getPinCords({ comp, pin_number, bit_width = 1, is_input = true } : { comp: ComponentProps, pin_number: number, bit_width?: number, is_input?: boolean } ) {
+function getPinCords({ comp, pin_number, is_input = true } : { comp: ComponentProps, pin_number: number, is_input?: boolean } ) {
   if (!sizeMap.has(comp.type)) {
     console.error(`Nie ma zapisanych danych o rozmiarze dla obiektu: ${comp.type}`);
     return null;
@@ -32,32 +32,29 @@ function getPinCords({ comp, pin_number, bit_width = 1, is_input = true } : { co
   
   let pin_x = comp.display_x;
   let pin_y = comp.display_y;
-  
+  let n_pins = comp.metadata.num_input_pins;
+
+  if (comp.type == "OUTPUT" || comp.type == "INPUT") {
+    w *= comp.bit_width!;
+    is_input ? w -= 5 : w += 5;
+  }
+
+  if (!is_input) {
+    pin_x = pin_x + w;
+    n_pins = comp.metadata.num_output_pins;
+  }
+
+
   if (comp.type == "MUX" && is_input && pin_number == comp.metadata.num_input_pins) {
     pin_x = pin_x + w - 15;
     pin_y = pin_y + h;
   }
-  else if (comp.type == "ADDER" && !is_input && pin_number == comp.metadata.num_output_pins) {
-    pin_x = pin_x + w;
-    pin_y = pin_y + 40;
-  }
-  else {
-    if (comp.type == "OUTPUT" || comp.type == "INPUT") {
-      w *= bit_width;
-      is_input ? w -= 5 : w += 5;
-    }
-    
+  else {    
     const spacing = 20; // FIXED 20 pixels spacing between pins
     const center_y = comp.display_y + h / 2;
 
-    if (is_input) {
-      let ni_pins = comp.metadata.num_input_pins;
-      const pin_0_y = center_y + (spacing / 2) * (ni_pins - 1);
-      pin_y = pin_0_y - (spacing * pin_number);
-    } else {
-      pin_x = comp.display_x + w;
-      pin_y = center_y;
-    }
+    const pin_0_y = center_y + (spacing / 2) * (n_pins - 1);
+    pin_y = pin_0_y - (spacing * pin_number);
   }
 
   return { x: pin_x, y: pin_y };
@@ -67,7 +64,7 @@ export function Circuit({fetchedData, ref, transform}: { fetchedData: FetchData 
   if (!fetchedData) return;
 
   // INITIALIZE DATA
-  const circuit_bit_width = 1;
+  const circuit_bit_width = 4;
 
   const circuit_components_data = fetchedData.components;
   const circuit_connections_data = fetchedData.connections;
@@ -134,8 +131,8 @@ export function Circuit({fetchedData, ref, transform}: { fetchedData: FetchData 
     const from_comp = componentMap[conn.from_component_id];
     const to_comp = componentMap[conn.to_component_id];
 
-    const start_cords = getPinCords({comp: from_comp, pin_number: conn.from_output_pin, bit_width: circuit_bit_width, is_input: false});
-    const end_cords = getPinCords({comp: to_comp, pin_number: conn.to_input_pin, bit_width: circuit_bit_width, is_input: true});
+    const start_cords = getPinCords({comp: from_comp, pin_number: conn.from_output_pin, is_input: false});
+    const end_cords = getPinCords({comp: to_comp, pin_number: conn.to_input_pin, is_input: true});
 
     if (!start_cords || !end_cords) {
       return null;
@@ -149,6 +146,9 @@ export function Circuit({fetchedData, ref, transform}: { fetchedData: FetchData 
       }
     }
 
+    const distance_x = Math.sqrt(Math.pow(end_cords.x - start_cords.x, 2));
+    let off = distance_x / 2;
+  
     return (
       <Connection
         key={conn.id}
@@ -157,6 +157,7 @@ export function Circuit({fetchedData, ref, transform}: { fetchedData: FetchData 
         to_x={end_cords.x}
         to_y={end_cords.y}
         signal={s}
+        offset={(off)}
       />
     )
   });
@@ -169,7 +170,8 @@ export function Circuit({fetchedData, ref, transform}: { fetchedData: FetchData 
       {circuit_components_data.map(comp => {
         const BW = comp.bit_width ? comp.bit_width : circuit_bit_width;
         
-        return (<LogicComponent
+        return (
+        <LogicComponent
           key={comp.id}
           {...comp}
           onOutputChange={handleOutputChange}
@@ -181,3 +183,4 @@ export function Circuit({fetchedData, ref, transform}: { fetchedData: FetchData 
     </g>
   )
 }
+

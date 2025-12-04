@@ -2,6 +2,8 @@ export type ComponentMetadata = {
   num_input_pins: number,
   num_output_pins: number,
   label: string,
+  label_x?: number,
+  label_y?: number
 }
 
 

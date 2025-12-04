@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import type { ComponentProps } from "../model/Component";
 import { sizeMap } from "./Circuit";
+import { Label } from "./Label";
 
 function NOTGate({ baseData, input, onOutputChange } : { baseData: ComponentProps, input?: number[], onOutputChange?: (id: number, newValue: number[][]) => void }) {
   let newOutput = Array(baseData.bit_width).fill(0);
   useEffect(() => {
     if (input && onOutputChange) {
       for(var i = 0; i < baseData.bit_width!; i++) {
-        newOutput[i] = input[i] == 0 ? 1 : 0;
+        newOutput[i] = input[i] ^ 1;
       }
 
       onOutputChange(baseData.id, [newOutput]);
@@ -15,11 +16,11 @@ function NOTGate({ baseData, input, onOutputChange } : { baseData: ComponentProp
   }, [input]);
 
   return (
-    <g transform={`translate(${baseData.display_x}, ${baseData.display_y})`} className="notGate">
-      <polygon points="10, 0 10,40 50,20" fill="white" stroke="black" strokeWidth="1"/>
-      <circle cx="60" cy="20" r="5" fill="white" stroke="black" strokeWidth="1"/>
+    <g transform={`translate(${baseData.display_x}, ${baseData.display_y})`}>
+      <polygon points="10,10 10,30 30,20" fill="white" stroke="black" strokeWidth="1"/>
+      <circle cx="35" cy="20" r="3" fill="white" stroke="black" strokeWidth="1"/>
       <line x1="0" y1="20" x2="10" y2="20" stroke="black" strokeWidth="1"/>
-      <line x1="65" y1="20" x2="85" y2="20" stroke="black" strokeWidth="1"/>
+      {/* <line x1="40" y1="20" x2="45" y2="20" stroke="black" strokeWidth="1"/> */}
     </g>
   );
 }
@@ -97,11 +98,16 @@ function BitBus({ baseData, input, onOutputChange }: { baseData: ComponentProps,
   }
 
   const bus = bits.map((value, index) => <BitCell key={index} x={20 * index} y={0} mode={baseData.type} onToggle={() => handleToggle(index)} value={value}/>);
-  
+
+  const labelX = baseData.metadata.label_x ? baseData.metadata.label_x : -5;
+  const labelY = baseData.metadata.label_y ? baseData.metadata.label_y : 35;
+  const cell_width = sizeMap.get(baseData.type)![0];
+
   return (
-    <g transform={`translate(${baseData.display_x}, ${baseData.display_y})`} className="bitBus">
+    <g transform={`translate(${baseData.display_x}, ${baseData.display_y})`} style={{cursor:"default", userSelect: "none"}}>
       {bus}
-      <line x1={baseData.type == "INPUT" ? 20 * baseData.bit_width! : 0} y1="10" x2={baseData.type == "INPUT" ? 20 * baseData.bit_width! + 5 : -5} y2="10" stroke="black" strokeWidth="1"/>
+      <Label x={labelX} y={labelY} text={baseData.metadata.label}/>
+      <line x1={baseData.type == "INPUT" ? cell_width * baseData.bit_width! : 0} y1="10" x2={baseData.type == "INPUT" ? cell_width * baseData.bit_width! + 5 : -5} y2="10" stroke="black" strokeWidth="1"/>
     </g>
   )
 }
@@ -112,7 +118,7 @@ function BitCell({ x, y, mode = "INPUT", value, onToggle }: { x: number, y: numb
   };
 
   return (
-    <g transform={`translate(${x}, ${y})`} className="bitCell" onClick={handleClick} style={{cursor: mode == "INPUT" ? "pointer" : "default", userSelect: "none"}}>
+    <g transform={`translate(${x}, ${y})`} onClick={handleClick} style={{cursor: mode == "INPUT" ? "pointer" : "default", userSelect: "none"}}>
       <rect width="20" height="20" x="0" y="0" fill="white" stroke={mode == "INPUT" ? "green" : "red"}/>
       <text x="5" y="15" fontFamily="Verdana">{value}</text>
     </g>
@@ -137,15 +143,20 @@ function Mux({ baseData, inputs, onOutputChange } : { baseData: ComponentProps, 
     const pin_0_y = center_y + (spacing / 2) * (ni_pins - 1);
     const pin_y = pin_0_y - (spacing * index);
     
-    return <line x1="0" y1={pin_y} x2="10" y2={pin_y} stroke="black" strokeWidth="1"></line>
+    return (
+    <g style={{cursor: "default", userSelect: "none"}}>
+      <line x1="0" y1={pin_y} x2="10" y2={pin_y} stroke="black" strokeWidth="1"></line>
+      <text x={13} y={pin_y + 2} fontSize={8}>{index}</text>
+    </g>
+    )
   })
   
   return (
     <g transform={`translate(${baseData.display_x}, ${baseData.display_y})`}>
-      {/* Input */}
-      {inputPins}
       {/* Body */}
       <path d="M10 0 L 40 20 L 40 60 L 10 80 L 10 0" stroke="black" fill="white" strokeWidth="1"/>
+      {/* Input */}
+      {inputPins}
       {/* Output */}
       <line x1="40" y1="40" x2="55" y2="40" stroke="black" strokeWidth="1"></line>
       {/* Operation Input */}
@@ -159,27 +170,26 @@ function Adder({ baseData, inputs, onOutputChange } : { baseData: ComponentProps
     if (inputs && onOutputChange){
       let newOutput = Array(baseData.bit_width).fill(0);
       let cin = inputs[0][0];
+      let prev_cin = cin;
       const A = inputs[1];
       let B = inputs[2];
-
-      if (cin == 1) {
-        let invB = Array(B.length).fill(0);
-        for (let i = 0; i < B.length; i++) {
-          invB[i] = B[i] ^ cin;  // invert B if cin=1
-        }
-
-        B = invB;
-      }
 
       for(var i=A.length - 1; i >= 0; i--) {
         const abit = A[i];
         const bbit = B[i];
 
         newOutput[i] = abit ^ bbit ^ cin
+
+        if (i == 1) {
+          prev_cin = cin;
+        }
+
         cin = (abit & bbit) | (cin & (abit ^ bbit))
       }
+      
+      const overflow = prev_cin ^ cin;
 
-      onOutputChange(baseData.id, [newOutput, [cin]]);
+      onOutputChange(baseData.id, [[overflow], [cin], newOutput]);
     }
   }, [...inputs]);
 
@@ -192,9 +202,11 @@ function Adder({ baseData, inputs, onOutputChange } : { baseData: ComponentProps
       {/* Body */}
       <rect width="60" height="60" x="10" y="0" fill="white" stroke="black"/>
       {/* Output */}
-      <line x1="70" y1="30" x2="80" y2="30" stroke="black"/>
+      <line x1="70" y1="10" x2="85" y2="10" stroke="black"/>
       {/* Carry out */}
-      <line x1="70" y1="40" x2="80" y2="40" stroke="black"/>
+      <line x1="70" y1="30" x2="85" y2="30" stroke="black"/>
+      {/* Overflow */}
+      <line x1="70" y1="50" x2="85" y2="50" stroke="black"/>
     </g>
   )
 }
